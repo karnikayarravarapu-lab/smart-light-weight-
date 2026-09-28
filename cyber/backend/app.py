@@ -786,17 +786,17 @@ def predict_file():
         # MODEL PREDICTION
         # =============================================
 
-       predictions = model.predict(
-           X,
-           batch_size=16,
-           verbose=0
-       )
+         predictions = model.predict(
+             X,
+             batch_size=16,
+             verbose=0
+         )
 
 
-        print(
-            "Prediction shape:",
-            predictions.shape
-        )
+         print(
+             "Prediction shape:",
+              predictions.shape
+         )
 
 
         # =============================================
