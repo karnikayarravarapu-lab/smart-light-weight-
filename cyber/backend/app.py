@@ -334,7 +334,7 @@ def predict_file():
 
         try:
 
-            df = pd.read_csv(file)
+            df = pd.read_csv(file, nrows=5000)
 
         except Exception as csv_error:
 
@@ -786,13 +786,11 @@ def predict_file():
         # MODEL PREDICTION
         # =============================================
 
-        predictions = model.predict(
-
-            X,
-
-            verbose=0
-
-        )
+       predictions = model.predict(
+    X,
+    batch_size=16,
+    verbose=0
+)
 
 
         print(
