@@ -787,10 +787,10 @@ def predict_file():
         # =============================================
 
        predictions = model.predict(
-    X,
-    batch_size=16,
-    verbose=0
-)
+           X,
+           batch_size=16,
+           verbose=0
+       )
 
 
         print(
