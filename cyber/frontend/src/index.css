@@ -1,0 +1,116 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f7fb;
+  color: #1f2937;
+}
+
+.dashboard {
+  max-width: 1200px;
+  margin: auto;
+  padding: 35px;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 35px;
+}
+
+header h1 {
+  font-size: 38px;
+  margin-bottom: 10px;
+}
+
+header p {
+  color: #6b7280;
+}
+
+.card {
+  background: white;
+  padding: 30px;
+  margin-bottom: 25px;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+}
+
+.upload-card {
+  text-align: center;
+}
+
+input[type="file"] {
+  display: block;
+  margin: 25px auto;
+}
+
+button {
+  padding: 13px 30px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #9ca3af;
+}
+
+.file-name {
+  font-weight: bold;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.stat-card {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  text-align: center;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+}
+
+.stat-card h3 {
+  margin-top: 0;
+  color: #6b7280;
+}
+
+.stat-card strong {
+  font-size: 32px;
+}
+
+.percentage {
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+}
+
+.percentage div {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.percentage strong {
+  font-size: 32px;
+}
+
+@media (max-width: 700px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard {
+    padding: 15px;
+  }
+}
