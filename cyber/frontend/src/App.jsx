@@ -35,10 +35,7 @@ function App() {
       setLoading(true);
       setResult(null);
 
-      const response = await axios.post(
-        "http://127.0.0.1:5000/predict-file",
-        formData
-      );
+      axios.post("YOUR_DEPLOYED_BACKEND_URL/predict-file", formData)
 
       console.log("SUCCESS:", response.data);
 
