@@ -35,7 +35,7 @@ function App() {
       setLoading(true);
       setResult(null);
 
-      axios.post("YOUR_DEPLOYED_BACKEND_URL/predict-file", formData)
+      axios.post("https://smart-light-weight.onrender.com", formData)
 
       console.log("SUCCESS:", response.data);
 
