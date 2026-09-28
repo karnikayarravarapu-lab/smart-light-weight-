@@ -9,6 +9,13 @@ import re
 
 app = Flask(__name__)
 CORS(app)
+CORS(
+    app,
+    origins=[
+        "https://smart-light-weight-321-git-main-karnikayarravarapu-lab.vercel.app",
+        "https://smart-light-weight-321-7shar5zuf-karnikayarravarapu-lab.vercel.app"
+    ]
+)
 
 
 # =========================================================
