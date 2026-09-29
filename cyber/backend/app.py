@@ -1,20 +1,14 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import tensorflow as tf
+import onnxruntime as ort
 import joblib
 import pandas as pd
 import numpy as np
 import os
-import re
+
 
 app = Flask(__name__)
-CORS(
-    app,
-    origins=[
-        "https://smart-light-weight-321-git-main-karnikayarravarapu-lab.vercel.app",
-        "https://smart-light-weight-321-7shar5zuf-karnikayarravarapu-lab.vercel.app"
-    ]
-)
+CORS(app)
 
 
 # =========================================================
@@ -26,15 +20,22 @@ MODEL_DIR = os.path.join(BASE_DIR, "models")
 
 
 # =========================================================
-# LOAD MODEL AND PREPROCESSING OBJECTS
+# LOAD ONNX MODEL AND PREPROCESSING OBJECTS
 # =========================================================
 
-model = tf.keras.models.load_model(
-    os.path.join(
-        MODEL_DIR,
-        "CyberThreatDetection.keras"
-    )
+model_path = os.path.join(
+    MODEL_DIR,
+    "CyberThreatDetection.onnx"
 )
+
+model = ort.InferenceSession(
+    model_path,
+    providers=["CPUExecutionProvider"]
+)
+
+model_input_name = model.get_inputs()[0].name
+model_output_name = model.get_outputs()[0].name
+
 
 scaler = joblib.load(
     os.path.join(
@@ -66,7 +67,11 @@ print("\n========================================")
 print("CYBER THREAT DETECTION API")
 print("========================================")
 
-print("Model input shape:", model.input_shape)
+print("Runtime: ONNX Runtime")
+print("Model input:", model_input_name)
+print("Model input shape:", model.get_inputs()[0].shape)
+print("Model output:", model_output_name)
+print("Model output shape:", model.get_outputs()[0].shape)
 print("Selector expects:", selector.n_features_in_)
 print("Scaler expects:", scaler.n_features_in_)
 
@@ -153,95 +158,6 @@ FEATURE_COLUMNS = [
 ]
 
 
-def normalize_column_name(column_name):
-    normalized = str(column_name).strip().lower()
-    return re.sub(r"[^a-z0-9]+", "_", normalized).strip("_")
-
-
-COLUMN_ALIASES = {
-    "protocol": "protocol_type",
-    "proto": "protocol_type",
-    "dur": "duration",
-    "protocol_type": "protocol_type",
-    "service": "service",
-    "flag": "flag",
-    "state": "flag",
-    "src_bytes": "src_bytes",
-    "src_byte": "src_bytes",
-    "sbytes": "src_bytes",
-    "dst_bytes": "dst_bytes",
-    "dst_byte": "dst_bytes",
-    "dbytes": "dst_bytes",
-    "duration": "duration",
-    "land": "land",
-    "wrong_fragment": "wrong_fragment",
-    "urgent": "urgent",
-    "hot": "hot",
-    "num_failed_logins": "num_failed_logins",
-    "num_compromised": "num_compromised",
-    "root_shell": "root_shell",
-    "su_attempted": "su_attempted",
-    "num_root": "num_root",
-    "num_file_creations": "num_file_creations",
-    "num_shells": "num_shells",
-    "num_access_files": "num_access_files",
-    "num_outbound_cmds": "num_outbound_cmds",
-    "is_host_login": "is_host_login",
-    "is_guest_login": "is_guest_login",
-    "count": "count",
-    "spkts": "count",
-    "dpkts": "dst_host_count",
-    "rate": "same_srv_rate",
-    "serror_rate": "serror_rate",
-    "srv_serror_rate": "srv_serror_rate",
-    "srv_rerror_rate": "srv_rerror_rate",
-    "same_srv_rate": "same_srv_rate",
-    "diff_srv_rate": "diff_srv_rate",
-    "dst_host_count": "dst_host_count",
-    "dst_host_same_srv_rate": "dst_host_same_srv_rate",
-    "dst_host_diff_srv_rate": "dst_host_diff_srv_rate",
-    "dst_host_same_src_port_rate": "dst_host_same_src_port_rate",
-    "dst_host_srv_diff_host_rate": "dst_host_srv_diff_host_rate",
-    "dst_host_serror_rate": "dst_host_serror_rate",
-    "dst_host_srv_serror_rate": "dst_host_srv_serror_rate",
-    "dst_host_rerror_rate": "dst_host_rerror_rate",
-    "dst_host_srv_rerror_rate": "dst_host_srv_rerror_rate",
-}
-
-
-def standardize_feature_columns(dataframe):
-    renamed_columns = {}
-
-    for column in dataframe.columns:
-        normalized_name = normalize_column_name(column)
-        canonical_name = COLUMN_ALIASES.get(normalized_name, normalized_name)
-        renamed_columns[column] = canonical_name
-
-    dataframe = dataframe.rename(columns=renamed_columns)
-    dataframe.columns = [normalize_column_name(column) for column in dataframe.columns]
-    return dataframe
-
-
-def get_missing_feature_details(dataframe):
-    normalized_columns = {normalize_column_name(column): column for column in dataframe.columns}
-    missing = []
-    found_aliases = {}
-
-    for required in FEATURE_COLUMNS:
-        if required in dataframe.columns:
-            continue
-
-        normalized_required = normalize_column_name(required)
-        if normalized_required in normalized_columns:
-            actual = normalized_columns[normalized_required]
-            found_aliases[required] = actual
-            continue
-
-        missing.append(required)
-
-    return missing, found_aliases
-
-
 # =========================================================
 # CATEGORICAL FEATURES
 # =========================================================
@@ -270,8 +186,30 @@ def home():
         "message":
             "Cyber Threat Detection API is running",
 
+        "runtime":
+            "ONNX Runtime",
+
         "required_features":
-            len(FEATURE_COLUMNS),
+            len(FEATURE_COLUMNS)
+
+    })
+
+
+# =========================================================
+# HEALTH CHECK
+# =========================================================
+
+@app.route("/health", methods=["GET"])
+def health():
+
+    return jsonify({
+
+        "success": True,
+
+        "status": "healthy",
+
+        "model":
+            "CyberThreatDetection.onnx"
 
     })
 
@@ -334,7 +272,7 @@ def predict_file():
 
         try:
 
-            df = pd.read_csv(file, nrows=5000)
+            df = pd.read_csv(file)
 
         except Exception as csv_error:
 
@@ -368,7 +306,14 @@ def predict_file():
         # CLEAN COLUMN NAMES
         # =============================================
 
-        df = standardize_feature_columns(df)
+        df.columns = [
+
+            str(column)
+            .strip()
+            .lower()
+
+            for column in df.columns
+        ]
 
 
         # =============================================
@@ -406,13 +351,7 @@ def predict_file():
 
             "attack",
 
-            "prediction",
-
-            "outcome",
-
-            "is_attack",
-
-            "anomaly"
+            "prediction"
         ]
 
 
@@ -482,37 +421,38 @@ def predict_file():
         # CHECK REQUIRED FEATURES
         # =============================================
 
-        compact_network_schema = (
-            len(df.columns) < len(FEATURE_COLUMNS)
-            and {"duration", "protocol_type", "service"}.issubset(df.columns)
-        )
+        missing_features = [
 
-        if compact_network_schema:
-            defaults = {
-                "protocol_type": "tcp",
-                "service": "http",
-                "flag": "SF",
-            }
+            column
 
-            for column, default in defaults.items():
-                if column not in df.columns:
-                    df[column] = default
+            for column
+            in FEATURE_COLUMNS
 
-            for column in FEATURE_COLUMNS:
-                if column not in df.columns and column not in CATEGORICAL_COLUMNS:
-                    df[column] = 0
+            if column not in df.columns
+        ]
 
-        missing_features, found_aliases = get_missing_feature_details(df)
 
         if missing_features:
+
             return jsonify({
+
                 "success": False,
-                "error": "CSV is missing required features",
-                "missing_features": missing_features,
-                "required_feature_count": len(FEATURE_COLUMNS),
-                "found_aliases": found_aliases,
-                "received_columns": df.columns.tolist(),
-                "message": "Please upload a CSV compatible with the trained model."
+
+                "error":
+                    "CSV is missing required features",
+
+                "missing_features":
+                    missing_features,
+
+                "required_feature_count":
+                    len(FEATURE_COLUMNS),
+
+                "received_columns":
+                    df.columns.tolist(),
+
+                "message":
+                    "Please upload a CSV compatible with the trained model."
+
             }), 400
 
 
@@ -644,7 +584,6 @@ def predict_file():
 
 
         # =============================================
-        # IMPORTANT:
         # RESTORE ORIGINAL FEATURE ORDER
         # =============================================
 
@@ -658,9 +597,7 @@ def predict_file():
         # =============================================
 
         X = processed_df.astype(
-
             np.float32
-
         ).values
 
 
@@ -674,9 +611,7 @@ def predict_file():
         # =============================================
 
         expected_features = (
-
             selector.n_features_in_
-
         )
 
 
@@ -716,9 +651,7 @@ def predict_file():
         # =============================================
 
         expected_scaler_features = (
-
             scaler.n_features_in_
-
         )
 
 
@@ -747,6 +680,13 @@ def predict_file():
         X = scaler.transform(X)
 
 
+        # ONNX model expects float32
+        X = np.asarray(
+            X,
+            dtype=np.float32
+        )
+
+
         print(
             "After scaling:",
             X.shape
@@ -758,9 +698,7 @@ def predict_file():
         # =============================================
 
         model_input_features = (
-
-            model.input_shape[-1]
-
+            model.get_inputs()[0].shape[-1]
         )
 
 
@@ -783,20 +721,29 @@ def predict_file():
 
 
         # =============================================
-        # MODEL PREDICTION
+        # ONNX MODEL PREDICTION
         # =============================================
 
-         predictions = model.predict(
-             X,
-             batch_size=16,
-             verbose=0
-         )
+        predictions = model.run(
+
+            [model_output_name],
+
+            {
+                model_input_name: X
+            }
+
+        )[0]
 
 
-         print(
-             "Prediction shape:",
-              predictions.shape
-         )
+        predictions = np.asarray(
+            predictions
+        )
+
+
+        print(
+            "Prediction shape:",
+            predictions.shape
+        )
 
 
         # =============================================
@@ -964,10 +911,20 @@ def predict_file():
 # =========================================================
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+
+    port = int(
+        os.environ.get(
+            "PORT",
+            5000
+        )
+    )
 
     app.run(
+
         host="0.0.0.0",
+
         port=port,
+
         debug=False
+
     )
